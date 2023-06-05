@@ -146,7 +146,6 @@ port_mapping = {
     '50000': 'SAP Router',
 }
 
-
 def get_protocol(protocol):
     protocols = protocol.split()
     mapped_protocols = []
@@ -178,7 +177,11 @@ def parse_text(text):
         policy_name = match[0]
         policy_content = match[1]
 
-        sequence_pattern = r"sequence (\d+)(.*?)!(?=\s*sequence|\Z)"
+        default_action_pattern = r"default-action (\w+)"
+        default_action_match = re.search(default_action_pattern, policy_content)
+        default_action = default_action_match.group(1) if default_action_match else 'N/A'
+
+        sequence_pattern = r"sequence (\d+)(.*?)\s*(?=sequence|$)"
         sequence_matches = re.findall(sequence_pattern, policy_content, re.DOTALL)
 
         entries = []
@@ -186,7 +189,7 @@ def parse_text(text):
             sequence_entry = {}
             sequence_entry["sequence"] = sequence_match[0]
 
-            match_pattern = r"match(.*?)!(?=\s*action|\Z)"
+            match_pattern = r"match(.*?)\s*(?=action|$)"
             match_match = re.search(match_pattern, sequence_match[1], re.DOTALL)
             if match_match:
                 match_content = match_match.group(1)
@@ -200,7 +203,7 @@ def parse_text(text):
                 source_prefix_match = re.search(source_prefix_pattern, match_content)
                 if source_prefix_match:
                     sequence_entry["source_data_prefix_list"] = source_prefix_match.group(1)
-                    
+
                 dest_prefix_pattern = r"destination-data-prefix-list\s+([A-Za-z0-9_]+)"
                 dest_prefix_match = re.search(dest_prefix_pattern, match_content)
                 if dest_prefix_match:
@@ -224,8 +227,14 @@ def parse_text(text):
 
             entries.append(sequence_entry)
 
+        # Handle case when there are no "match" sections
+        if not entries:
+            sequence_entry = {"sequence": sequence_match[0], "action": "N/A"}
+            entries.append(sequence_entry)
+
         policy_entry = {
             "label": policy_name.strip(),
+            "default_action": default_action,
             "sequences": entries
         }
         result.append(policy_entry)
@@ -243,10 +252,14 @@ headers = "| Sequence | Destination IP | Source Data Prefix List | Destination D
 divider = "| --- | --- | --- | --- | --- | --- | --- |"
 
 prev_policy_name = None
+last_policy_name = None
 for policy in parsed_data:
     policy_name = policy["label"]
+    default_action = policy["default_action"]
     if prev_policy_name != policy_name:
-        print(f"\n## {policy_name}")
+        if prev_policy_name is not None:
+            print()  # Add an empty line between policies
+        print(f"## {policy_name} (Default action: {default_action})")
         print(headers)
         print(divider)
         prev_policy_name = policy_name
@@ -260,3 +273,11 @@ for policy in parsed_data:
         action = sequence.get("action", "")
         entry = f"| {sequence_num} | {destination_ip} | {source_data_prefix_list} | {destination_data_prefix_list} | {destination_port} | {protocol} | {action} |"
         print(entry)
+    last_policy_name = policy_name
+
+# Print the last policy if it exists
+if last_policy_name is not None and last_policy_name != prev_policy_name:
+    print()  # Add an empty line
+    print(f"## {last_policy_name} (Default action: {default_action})")
+    print(headers)
+    print(divider)
