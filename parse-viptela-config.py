@@ -194,17 +194,17 @@ def parse_text(text):
             if match_match:
                 match_content = match_match.group(1)
 
-                ip_pattern = r"destination-ip\s+([A-Za-z0-9./ ]+)"
+                ip_pattern = r"destination-ip\s+([A-Za-z0-9./ -]+)"
                 ip_matches = re.findall(ip_pattern, match_content)
                 if ip_matches:
                     sequence_entry["destination_ip"] = ', '.join(ip_matches)
 
-                source_prefix_pattern = r"source-data-prefix-list\s+([A-Za-z0-9_]+)"
+                source_prefix_pattern = r"source-data-prefix-list\s+([A-Za-z0-9_-]+)"
                 source_prefix_match = re.search(source_prefix_pattern, match_content)
                 if source_prefix_match:
                     sequence_entry["source_data_prefix_list"] = source_prefix_match.group(1)
 
-                dest_prefix_pattern = r"destination-data-prefix-list\s+([A-Za-z0-9_]+)"
+                dest_prefix_pattern = r"destination-data-prefix-list\s+([A-Za-z0-9_-]+)"
                 dest_prefix_match = re.search(dest_prefix_pattern, match_content)
                 if dest_prefix_match:
                     sequence_entry["destination_data_prefix_list"] = dest_prefix_match.group(1)
@@ -258,7 +258,7 @@ for policy in parsed_data:
     default_action = policy["default_action"]
     if prev_policy_name != policy_name:
         if prev_policy_name is not None:
-            print()  # Add an empty line between policies
+            print()  # Add a blank line between policies
         print(f"## {policy_name} (Default action: {default_action})")
         print(headers)
         print(divider)
@@ -275,9 +275,6 @@ for policy in parsed_data:
         print(entry)
     last_policy_name = policy_name
 
-# Print the last policy if it exists
+# Print a blank line after the last policy
 if last_policy_name is not None and last_policy_name != prev_policy_name:
-    print()  # Add an empty line
-    print(f"## {last_policy_name} (Default action: {default_action})")
-    print(headers)
-    print(divider)
+    print()
